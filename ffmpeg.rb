@@ -2,14 +2,14 @@ class Ffmpeg
 
   FFMPEG = ENV['FFMPEG'] || 'ffmpeg'
 
-  attr_accessor :cmd, :inputs, :outputs, :dest_path, :dest_prefix, :dest_ext, :options
+  attr_accessor :cmd, :inputs, :outputs,
+                :dest_path, :dest_prefix, :dest_ext, :options
 
   def initialize(cmd, options = {}, &block)
     @cmd = cmd
     @inputs = []
     @outputs = []
     @options = options
-
     @options[:fps] ||= 10
 
     instance_eval(&block) if block_given?
@@ -44,8 +44,8 @@ class Ffmpeg
   def execute(*args)
     cmds = send("build_#{@cmd}_cmd", *args)
 
-    if comds.nil?
-      return true;
+    if cmds.nil?
+      true
     elsif cmds.respond_to? :each
       cmds.each { |cmd| system(cmd, err: dest_file("_err", ".log")) }
     else

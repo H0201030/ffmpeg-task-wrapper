@@ -21,6 +21,21 @@ describe Ffmpeg do
     ffmpeg.dest_path.must_equal "dest_path"
     ffmpeg.dest_prefix.must_equal "output"
     ffmpeg.dest_ext.must_equal ".mp4"
+    ffmpeg.dest_file.must_equal "dest_path/output_merge.mp4"
+  end
+
+  it "can accept a block assignment with separated output" do
+    ffmpeg = Ffmpeg.new(:merge) do
+      input "input.mp4"
+      output "dest_path", ".mp4"
+    end
+
+    ffmpeg.cmd.must_equal :merge
+    ffmpeg.inputs.must_equal ["input.mp4"]
+    ffmpeg.dest_path.must_equal "dest_path"
+    ffmpeg.dest_prefix.must_equal ""
+    ffmpeg.dest_ext.must_equal ".mp4"
+    ffmpeg.dest_file.must_equal "dest_path/_merge.mp4"
   end
 
   it "can accept assignments individually" do

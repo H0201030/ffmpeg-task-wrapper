@@ -2,7 +2,7 @@ class Ffmpeg
 
   FFMPEG = ENV['FFMPEG'] || 'ffmpeg'
 
-  attr_accessor :cmd, :inputs, :outputs,
+  attr_accessor :cmd, :inputs, :outputs, :succeed,
                 :dest_path, :dest_prefix, :dest_ext, :options
 
   def initialize(cmd, options = {}, &block)
@@ -24,10 +24,20 @@ class Ffmpeg
     @outputs = []
   end
 
-  def output(file)
-    @dest_path   = File.dirname(file)
-    @dest_ext    = File.extname(file)
-    @dest_prefix = File.basename(file, @dest_ext)
+  def output(*args)
+    if (args.size == 1)
+      file = args[0]
+
+      @dest_path   = File.dirname(file)
+      @dest_ext    = File.extname(file)
+      @dest_prefix = File.basename(file, @dest_ext)
+    else
+      path, ext, prefix = args
+
+      @dest_path   = path
+      @dest_ext    = ext
+      @dest_prefix = prefix || ""
+    end
   end
 
   def output=(file)
@@ -44,12 +54,18 @@ class Ffmpeg
     cmds = send("build_#{@cmd}_cmd", *args)
 
     if cmds.nil?
-      true
+      @succeed = true
     elsif cmds.respond_to? :each
-      cmds.each { |cmd| system(cmd, err: dest_file("_err", ".log")) }
+      cmds.each { |cmd| @succeed = system(cmd, err: dest_file("_err", ".log")) }
     else
-      system(cmds, err: dest_file("_err", ".log"))
+      @succeed = system(cmds, err: dest_file("_err", ".log"))
     end
+
+    @succeed
+  end
+
+  def succeed?
+    @succeed == true
   end
 
   private

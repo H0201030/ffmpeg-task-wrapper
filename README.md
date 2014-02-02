@@ -1,6 +1,18 @@
 # Ffmpeg Wrapper
 
-- Merge Audio + Video to one file
-- Split Video into Segments
-- Speedup/Slowdown Video
-- Concatenate Videos to one file
+- Convert video format
+- Merge audio + video to one file
+- Split video into segments
+- Speedup/Slowdown videos
+- Concatenate videos (`mpg`) to one file
+
+# Example
+
+```ruby
+convert = Ffmpeg.new(:convert) do
+  input "input.mov"
+  output "output.mp4"
+end
+
+convert.execute
+```

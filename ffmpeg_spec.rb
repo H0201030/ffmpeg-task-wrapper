@@ -88,7 +88,7 @@ describe Ffmpeg do
   end
 
   it "should build correct speedup/slowdown cmd" do
-    ffmpeg = Ffmpeg.new(:speed, fps: 20) do
+    ffmpeg = Ffmpeg.new(:speed, fps: 20, update_frames: true) do
       input "input.mp4"
       output "tmp/out.mp4"
     end
@@ -102,7 +102,7 @@ describe Ffmpeg do
       output "tmp/out.mp4"
     end
 
-    ffmpeg.send(:build_speed_cmd, 2.0).must_equal 'ffmpeg -i "input.mp4" -r 20'\
+    ffmpeg.send(:build_speed_cmd, 2.0).must_equal 'ffmpeg -i "input.mp4" '\
       ' -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]"'\
       ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
 
@@ -118,7 +118,7 @@ describe Ffmpeg do
   end
 
   it "should build correct speedup/slowdown cmd without audio" do
-    ffmpeg = Ffmpeg.new(:speed, fps: 20, no_audio: true) do
+    ffmpeg = Ffmpeg.new(:speed, fps: 20, no_audio: true, update_frames: true) do
       input "input.mp4"
       output "tmp/out.mp4"
     end

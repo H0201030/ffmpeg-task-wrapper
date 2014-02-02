@@ -10,7 +10,6 @@ class Ffmpeg
     @inputs = []
     @outputs = []
     @options = options
-    @options[:fps] ||= 10
 
     instance_eval(&block) if block_given?
   end
@@ -88,24 +87,26 @@ class Ffmpeg
 
     times = [0.5, [2.0, times].min].max # atempo should within 0.5 - 2
 
-    audio_times = times.round(2)
-    video_times = (1.0 / times).round(2)
-
-    video_speed_opt = "[0:v]setpts=#{video_times}*PTS[v]"
-    audio_speed_opt = "[0:a]atempo=#{audio_times}[a]"
-
-    keep_frames = times > 1 ? "-r #{(@options[:fps] * times).to_i}" : ""
+    video_opt = "[0:v]setpts=#{(1.0 / times).round(2)}*PTS[v]"
+    audio_opt = "[0:a]atempo=#{times.round(2)}[a]"
+    new_fps   = calculate_new_fps(times) if options[:update_frames]
 
     outputs << dest_file
 
     if options[:no_audio]
-      "#{FFMPEG} #{input_files} #{keep_frames} -filter_complex \"#{video_speed_opt}\""\
+      "#{FFMPEG} #{input_files} #{new_fps} -filter_complex"\
+      " \"#{video_opt}\""\
       " -map \"[v]\" \"#{outputs.last}\""
     else
-      "#{FFMPEG} #{input_files} #{keep_frames} -filter_complex"\
-      " \"#{video_speed_opt};#{audio_speed_opt}\""\
+      "#{FFMPEG} #{input_files} #{new_fps} -filter_complex"\
+      " \"#{video_opt};#{audio_opt}\""\
       " -map \"[v]\" -map \"[a]\" \"#{outputs.last}\""
     end
+  end
+
+  def calculate_new_fps(times)
+    original_fps = options[:fps] || 10
+    "-r #{(original_fps * times).to_i}" if times > 1
   end
 
   def format_time(time)

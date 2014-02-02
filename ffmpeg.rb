@@ -56,7 +56,10 @@ class Ffmpeg
     if cmds.nil?
       @succeed = true
     elsif cmds.respond_to? :each
-      cmds.each { |cmd| @succeed = system(cmd, err: dest_file("_err", ".log")) }
+      cmds.each do |cmd|
+        @succeed = system(cmd, err: dest_file("_err", ".log"))
+        return false if !succeed?
+      end
     else
       @succeed = system(cmds, err: dest_file("_err", ".log"))
     end
@@ -74,6 +77,11 @@ class Ffmpeg
     @inputs.map { |i| "-i \"#{i}\"" }.join(" ")
   end
 
+  def build_convert_cmd
+    outputs << dest_file
+    "#{FFMPEG} #{input_files} -qscale 0 -intra \"#{outputs.last}\""
+  end
+
   def build_merge_cmd
     outputs << dest_file
     "#{FFMPEG} #{input_files} \"#{outputs.last}\""
@@ -81,7 +89,15 @@ class Ffmpeg
 
   def build_concat_cmd
     outputs << dest_file
-    "#{FFMPEG} -i \"concat:#{@inputs.join('|')}\" -c copy \"#{outputs.last}\""
+
+    if options[:no_mpeg]
+      # TODO based on
+      # http://trac.ffmpeg.org/wiki/How%20to%20concatenate%20%28join,%20merge%29%20media%20files#demuxer
+      "#{FFMPEG} -f concat -i <(printf \"file '%s'\\n\" #{inputs.first})"\
+      " -c copy \"#{outputs.last}\""
+    else
+      "#{FFMPEG} -i \"concat:#{@inputs.join('|')}\" -c copy \"#{outputs.last}\""
+    end
   end
 
   def build_split_cmd(split_points)

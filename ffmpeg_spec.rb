@@ -71,6 +71,30 @@ describe Ffmpeg do
     ffmpeg.outputs.must_equal ["merged/output_merge.mp4"]
   end
 
+  it "should build correct concat cmd" do
+    ffmpeg = Ffmpeg.new(:concat, no_mpeg: true) do
+      input './tmp_*.wav'
+      output 'merged/output.mp4'
+    end
+
+    ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg'\
+      " -f concat -i <(printf \"file '%s'\\n\" ./tmp_*.wav)"\
+      ' -c copy "merged/output_concat.mp4"'
+    ffmpeg.outputs.must_equal ["merged/output_concat.mp4"]
+  end
+
+  it "should build correct concat mpeg cmd" do
+    ffmpeg = Ffmpeg.new(:concat) do
+      input './tmp_1.mpg', './tmp_2.mpg'
+      output 'merged/output.mpg'
+    end
+
+    ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg'\
+      ' -i "concat:./tmp_1.mpg|./tmp_2.mpg"'\
+      ' -c copy "merged/output_concat.mpg"'
+    ffmpeg.outputs.must_equal ["merged/output_concat.mpg"]
+  end
+
   it "should format time" do
     ffmpeg = Ffmpeg.new(:merge)
 

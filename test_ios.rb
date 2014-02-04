@@ -20,7 +20,7 @@ end
 # this one is for iOS uploaded files
 ########################################
 
-path  = ARGV[0] || "test"
+path  = ARGV[0] || "test1"
 file  = ARGV[1] || "input.mov"
 times = ARGV[2] ? ARGV[2].split(",").map(&:to_f) : [8.6, 13.2, 20.8, 27.3]
 
@@ -60,7 +60,7 @@ puts "#{split.outputs.count} v.s. #{duration_diff}"
 
 split.outputs.each_with_index do |input, idx|
   speed.input = input
-  speed.output = expand("./#{path}/tmp_#{idx}.mp4")
+  speed.output = expand("./#{path}/tmp_#{idx}.mpg")
   to_speed = duration_diff[idx] / 3.0 # aim for 3s per split
 
   puts "speed [#{idx} -> #{to_speed}] = #{speed.execute(to_speed)}"

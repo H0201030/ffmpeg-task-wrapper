@@ -71,28 +71,30 @@ describe Ffmpeg do
     ffmpeg.outputs.must_equal ["merged/output_merge.mp4"]
   end
 
-  it "should build correct concat cmd" do
-    ffmpeg = Ffmpeg.new(:concat, no_mpeg: true) do
-      input './tmp_*.wav'
-      output 'merged/output.mp4'
+  describe "#build_concat_cmd" do
+    it "should build concat mpeg" do
+      ffmpeg = Ffmpeg.new(:concat) do
+        input './tmp_1.mpg', './tmp_2.mpg'
+        output 'merged/output.mpg'
+      end
+
+      ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg'\
+        ' -i "concat:./tmp_1.mpg|./tmp_2.mpg"'\
+        ' -c copy "merged/output_concat.mpg"'
+      ffmpeg.outputs.must_equal ["merged/output_concat.mpg"]
     end
 
-    ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg'\
-      " -f concat -i <(printf \"file '%s'\\n\" ./tmp_*.wav)"\
-      ' -c copy "merged/output_concat.mp4"'
-    ffmpeg.outputs.must_equal ["merged/output_concat.mp4"]
-  end
+    #it "should build concat demuxer" do
+      #ffmpeg = Ffmpeg.new(:concat, demuxer: true) do
+        #input './tmp_1.mp4', './tmp_2.mp4'
+        #output 'merged/output.mp4'
+      #end
 
-  it "should build correct concat mpeg cmd" do
-    ffmpeg = Ffmpeg.new(:concat) do
-      input './tmp_1.mpg', './tmp_2.mpg'
-      output 'merged/output.mpg'
-    end
-
-    ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg'\
-      ' -i "concat:./tmp_1.mpg|./tmp_2.mpg"'\
-      ' -c copy "merged/output_concat.mpg"'
-    ffmpeg.outputs.must_equal ["merged/output_concat.mpg"]
+      #ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg -f concat'\
+        #' -i "merged/output_concat_tcc.txt"'\
+        #' -c copy "merged/output_concat.mp4"'
+      #ffmpeg.outputs.must_equal ["merged/output_concat.mp4"]
+    #end
   end
 
   it "should format time" do
@@ -126,45 +128,61 @@ describe Ffmpeg do
       ' -an -vcodec copy -ss 00:00:05 -t 00:00:06 "tmp/out_split_part2.mp4"'
   end
 
-  it "should build correct speedup/slowdown cmd" do
-    ffmpeg = Ffmpeg.new(:speed, fps: 20, update_frames: true) do
-      input "input.mp4"
-      output "tmp/out.mp4"
+  describe "#build_speed_cmd" do
+    before :each do
+      @ffmpeg = Ffmpeg.new(:speed) do
+        input "input.mp4"
+        output "tmp/out.mp4"
+      end
     end
 
-    ffmpeg.send(:build_speed_cmd, 2.5).must_equal 'ffmpeg -i "input.mp4" -r 40'\
-      ' -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]"'\
-      ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
+    it "should speedup with fps updated" do
+      @ffmpeg.options[:fps] = 20
+      @ffmpeg.options[:update_frames] = true
 
-    ffmpeg = Ffmpeg.new(:speed) do
-      input "input.mp4"
-      output "tmp/out.mp4"
+      @ffmpeg.send(:build_speed_cmd, 2.5).must_equal 'ffmpeg -i "input.mp4"'\
+        ' -r 50 -filter_complex'\
+        ' "[0:v]setpts=0.4*PTS[v];[0:a]atempo=2.0;atempo=1.25[a]"'\
+        ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
     end
 
-    ffmpeg.send(:build_speed_cmd, 2.0).must_equal 'ffmpeg -i "input.mp4" '\
-      ' -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]"'\
-      ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
+    it "should speedup without audio" do
+      @ffmpeg.options[:no_audio] = true
 
-    ffmpeg.send(:build_speed_cmd, 1.0).must_be_nil
-
-    ffmpeg.send(:build_speed_cmd, 0.5).must_equal 'ffmpeg -i "input.mp4" '\
-      ' -filter_complex "[0:v]setpts=2.0*PTS[v];[0:a]atempo=0.5[a]"'\
-      ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
-
-    ffmpeg.send(:build_speed_cmd, 0.0).must_equal 'ffmpeg -i "input.mp4" '\
-      ' -filter_complex "[0:v]setpts=2.0*PTS[v];[0:a]atempo=0.5[a]"'\
-      ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
-  end
-
-  it "should build correct speedup/slowdown cmd without audio" do
-    ffmpeg = Ffmpeg.new(:speed, fps: 20, no_audio: true, update_frames: true) do
-      input "input.mp4"
-      output "tmp/out.mp4"
+      @ffmpeg.send(:build_speed_cmd, 2.5).must_equal 'ffmpeg -i "input.mp4" '\
+        ' -filter:v "setpts=0.4*PTS" "tmp/out_speed.mp4"'
     end
 
-    ffmpeg.send(:build_speed_cmd, 2.5).must_equal 'ffmpeg -i "input.mp4" -r 40'\
-      ' -filter_complex "[0:v]setpts=0.5*PTS[v]"'\
-      ' -map "[v]" "tmp/out_speed.mp4"'
+    it "should speedup by 5 times" do
+      @ffmpeg.send(:build_speed_cmd, 5.0).must_equal 'ffmpeg -i "input.mp4" '\
+        ' -filter_complex'\
+        ' "[0:v]setpts=0.2*PTS[v];[0:a]atempo=2.0;atempo=2.0;atempo=1.25[a]"'\
+        ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
+    end
+
+    it "should speedup by 2 times" do
+      @ffmpeg.send(:build_speed_cmd, 2.0).must_equal 'ffmpeg -i "input.mp4" '\
+        ' -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]"'\
+        ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
+    end
+
+    it "should skip speedup by 1 times" do
+      @ffmpeg.send(:build_speed_cmd, 1.0).must_be_nil
+    end
+
+    it "should slowdown by 2 times" do
+      @ffmpeg.send(:build_speed_cmd, 0.5).must_equal 'ffmpeg -i "input.mp4" '\
+        ' -filter_complex "[0:v]setpts=2.0*PTS[v];[0:a]atempo=0.5[a]"'\
+        ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
+    end
+
+    it "should slowdown by 5 times" do
+      @ffmpeg.send(:build_speed_cmd, 0.2).must_equal 'ffmpeg -i "input.mp4" '\
+        ' -filter_complex'\
+        ' "[0:v]setpts=5.0*PTS[v];[0:a]atempo=0.5;atempo=0.5;atempo=0.8[a]"'\
+        ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
+    end
+
   end
 
 end

@@ -2,6 +2,11 @@ class Ffmpeg
 
   FFMPEG = ENV['FFMPEG'] || 'ffmpeg'
 
+  #========================================
+  # Supported Tasks:
+  #   :convert, :merge, :concat, :split, :speed
+  #========================================
+
   attr_accessor :cmd, :inputs, :outputs, :succeed,
                 :dest_path, :dest_prefix, :dest_ext, :options
 
@@ -77,68 +82,100 @@ class Ffmpeg
     @inputs.map { |i| "-i \"#{i}\"" }.join(" ")
   end
 
+  # convert to i frames
   def build_convert_cmd
     outputs << dest_file
     "#{FFMPEG} #{input_files} -qscale 0 -intra \"#{outputs.last}\""
   end
 
+  # merge audio + video
   def build_merge_cmd
     outputs << dest_file
     "#{FFMPEG} #{input_files} \"#{outputs.last}\""
   end
 
+  # concat videos together
   def build_concat_cmd
     outputs << dest_file
 
-    if options[:no_mpeg]
-      # TODO based on
-      # http://trac.ffmpeg.org/wiki/How%20to%20concatenate%20%28join,%20merge%29%20media%20files#demuxer
-      "#{FFMPEG} -f concat -i <(printf \"file '%s'\\n\" #{inputs.first})"\
-      " -c copy \"#{outputs.last}\""
+    if options[:demuxer]
+      tmp_concat_file = dest_file("_tcc", ".txt")
+
+      File.open(tmp_concat_file, "w") do |file|
+        inputs.each { |i| file.write("file '#{File.basename(i)}'\n") }
+      end
+
+      "#{FFMPEG} -f concat -i \"#{tmp_concat_file}\" -c copy \"#{outputs.last}\""
     else
       "#{FFMPEG} -i \"concat:#{@inputs.join('|')}\" -c copy \"#{outputs.last}\""
     end
   end
 
+  # split video at time points
   def build_split_cmd(split_points)
     cmds = []
-    option = "-an -vcodec copy"
 
     split_points.inject(0) do |prev, cur|
       duration = cur.ceil - prev
       outputs << dest_file("_part#{cmds.count}")
-      cmds << "#{option} -ss #{format_time(prev)} -t #{format_time(duration)} \"#{outputs.last}\""
+      cmds    << "-an -vcodec copy "\
+                 "-ss #{format_time(prev)} -t #{format_time(duration)} "\
+                 "\"#{outputs.last}\""
       cur.ceil
     end
 
     "#{FFMPEG} #{input_files} #{cmds.join(' ')}"
   end
 
+  # speed times +ve: speedup, -ve: slowdown
   def build_speed_cmd(times)
-    return nil if (0.9..1.1).include?(times)
+    if (0.95..1.05).include?(times)
+      @outputs = @inputs
+      return nil
+    end
 
-    times = [0.5, [2.0, times].min].max # atempo should within 0.5 - 2
-
-    video_opt = "[0:v]setpts=#{(1.0 / times).round(2)}*PTS[v]"
-    audio_opt = "[0:a]atempo=#{times.round(2)}[a]"
+    video_opt = "setpts=#{(1.0 / times)}*PTS"
     new_fps   = calculate_new_fps(times) if options[:update_frames]
 
-    outputs << dest_file
+    @outputs << dest_file
 
     if options[:no_audio]
-      "#{FFMPEG} #{input_files} #{new_fps} -filter_complex"\
-      " \"#{video_opt}\""\
-      " -map \"[v]\" \"#{outputs.last}\""
+      "#{FFMPEG} #{input_files} #{new_fps} -filter:v"\
+      " \"#{video_opt}\" \"#{@outputs.last}\""
     else
+      audio_opt = calculate_audio_times(times)
+
       "#{FFMPEG} #{input_files} #{new_fps} -filter_complex"\
-      " \"#{video_opt};#{audio_opt}\""\
-      " -map \"[v]\" -map \"[a]\" \"#{outputs.last}\""
+      " \"[0:v]#{video_opt}[v];[0:a]#{audio_opt}[a]\""\
+      " -map \"[v]\" -map \"[a]\" \"#{@outputs.last}\""
     end
   end
 
   def calculate_new_fps(times)
-    original_fps = options[:fps] || 10
-    "-r #{(original_fps * times).to_i}" if times > 1
+    if options[:new_fps]
+      "-r #{options[:new_fps]}"
+    else
+      "-r #{(options[:fps] || 10) * times}" if times > 1
+    end
+  end
+
+  def calculate_audio_times(times)
+    return "atempo=#{times}" if times >= 0.5 && times <= 2.0
+
+    atimes    = times > 2.0 ? 2.0 : 0.5
+    result    = "atempo=#{atimes}"
+    times     = times / atimes
+    acumulate = 0
+
+    while (atimes == 2.0 && times > 1.0) || (atimes == 0.5 && times < 1.0)
+      atmepo  = [0.5, [2.0, times].min].max
+      result += ";atempo=#{atmepo}"
+      times   = times / atimes
+
+      break if (acumulate += 1) > 5 # only acumulate 5 times
+    end
+
+    result
   end
 
   def format_time(time)

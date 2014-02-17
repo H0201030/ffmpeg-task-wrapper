@@ -53,6 +53,8 @@ ARGV.each do |o|
     path, file = v.split("/")
   elsif k == 's'
     times = v.split(",").map(&:to_f)
+  elsif k == 'r'
+    targets = v.split(",").map(&:to_f)
   end
 end
 
@@ -62,6 +64,7 @@ puts "process #{path}/#{file} at timesteps #{times}"
 if task.include? "clean"
   puts "clean files"
   clean_file(path, "tmp_*")
+  clean_file(path, "*concat*.{txt,log}")
 end
 
 ########################################

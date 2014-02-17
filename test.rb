@@ -19,6 +19,7 @@ end
 #  - t:task, clean, convert, split, speed, concat, ios, web
 #  - p:path/file
 #  - s:timesteps
+#  - r:target_speed
 #
 # this one is for iOS uploaded files
 ########################################
@@ -28,6 +29,7 @@ file    = "input.mov"
 times   = [8.6, 13.2, 20.8, 27.3]
 frame   = false
 new_fps = 30
+targets = [1, 1, 2, 1, 3]
 
 task = ["clean", "convert", "split", "speed", "concat"]
 
@@ -108,14 +110,14 @@ if task.include? "speed"
     c.ceil
   end
 
-  puts "#{Dir[expand("./#{path}/tmp_split_*.mp4")].count} v.s. #{duration_diff}"
+  puts "#{Dir[expand("./#{path}/tmp_split_*.mp4")].count} v.s. #{duration_diff} to #{targets}"
 
   Dir[expand("./#{path}/tmp_split_*.mp4")].each_with_index do |input, idx|
     speed.input = input
     speed.output = expand("./#{path}/tmp_#{idx}.mp4")
 
-    to_speed = duration_diff[idx] / 2.0 # aim for 2s per split
-    puts "speed [#{idx} -> #{to_speed}] = #{speed.execute(to_speed)}"
+    to_speed = duration_diff[idx].to_f / targets[idx].to_f # aim for 2s per split
+    puts "speed [#{idx}] (#{duration_diff[idx]}  -> #{targets[idx]}) : #{to_speed} = #{speed.execute(to_speed)}"
   end
 
   exit unless speed.succeed?
@@ -125,11 +127,11 @@ end
 # concat
 ########################################
 if task.include? "concat"
-  clean_file(path, "tmp_concat*")
+  clean_file(path, "#{file[/[^.]*/]}_concat*")
 
   concat = Ffmpeg.new(:concat, demuxer: true)
   concat.input(*Dir[expand("./#{path}/tmp_*_speed.mp4")])
-  concat.output = expand("./#{path}/tmp.mp4")
+  concat.output = expand("./#{path}/#{file[/[^.]*/]}.mp4")
 
   puts "#{concat.inputs}"
   puts "concat = #{concat.execute}"

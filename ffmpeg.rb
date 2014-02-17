@@ -129,11 +129,6 @@ class Ffmpeg
 
   # speed times +ve: speedup, -ve: slowdown
   def build_speed_cmd(times)
-    if (0.95..1.05).include?(times)
-      @outputs = @inputs
-      return nil
-    end
-
     video_opt = "setpts=#{(1.0 / times)}*PTS"
     new_fps   = calculate_new_fps(times) if options[:update_frames]
 

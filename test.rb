@@ -20,8 +20,6 @@ end
 #  - p:path/file
 #  - s:timesteps
 #  - r:target_speed
-#
-# this one is for iOS uploaded files
 ########################################
 
 path    = "test1"
@@ -45,6 +43,8 @@ ARGV.each do |o|
       times = [3.6, 8.2, 15, 21]
       frame = true
 
+      task = v if v.size > 1
+    elsif v.include?("ios")
       task = v if v.size > 1
     else
       task = v

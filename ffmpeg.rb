@@ -4,7 +4,7 @@ class Ffmpeg
 
   #========================================
   # Supported Tasks:
-  #   :convert, :merge, :concat, :split, :speed
+  #   :convert, :merge, :rotate, :concat, :split, :speed
   #========================================
 
   attr_accessor :cmd, :inputs, :outputs, :succeed,
@@ -92,6 +92,26 @@ class Ffmpeg
   def build_merge_cmd
     outputs << dest_file
     "#{FFMPEG} #{input_files} \"#{outputs.last}\""
+  end
+
+  # rotate video
+  def build_rotate_cmd
+    outputs << dest_file
+
+    transpose = case options[:rotation]
+                # 0 = 90CounterCLockwise and Vertical Flip (default)
+                when :cclockwise90v then 0
+                # 1 = 90Clockwise
+                when :clockwise90 then 1
+                # 2 = 90CounterClockwise
+                when :cclockwise90 then 2
+                # 3 = 90Clockwise and Vertical Flip
+                when :clockwise90v then 3
+                # default = 90Clockwise
+                else 1
+                end
+
+    "#{FFMPEG} #{input_files} -vf \"transpose=#{transpose}\" \"#{outputs.last}\""
   end
 
   # concat videos together

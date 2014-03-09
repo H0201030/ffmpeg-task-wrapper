@@ -2,9 +2,10 @@
 
 - Convert video format
 - Merge audio + video to one file
+- Rotate video
 - Split video into segments
 - Speedup/Slowdown videos
-- Concatenate videos (`mpg`) to one file
+- Concatenate video segments to one video
 
 # Example
 
@@ -16,3 +17,7 @@ end
 
 convert.execute
 ```
+
+# License
+
+Released under MIT Licence. By [Wang Zhuochun](https://github.com/zhuochun).

@@ -85,15 +85,15 @@ describe Ffmpeg do
     end
 
     #it "should build concat demuxer" do
-      #ffmpeg = Ffmpeg.new(:concat, demuxer: true) do
-        #input './tmp_1.mp4', './tmp_2.mp4'
-        #output 'merged/output.mp4'
-      #end
+    #  ffmpeg = Ffmpeg.new(:concat, demuxer: true) do
+    #    input './tmp_1.mp4', './tmp_2.mp4'
+    #    output 'merged/output.mp4'
+    #  end
 
-      #ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg -f concat'\
-        #' -i "merged/output_concat_tcc.txt"'\
-        #' -c copy "merged/output_concat.mp4"'
-      #ffmpeg.outputs.must_equal ["merged/output_concat.mp4"]
+    #  ffmpeg.send(:build_concat_cmd).must_equal 'ffmpeg -f concat'\
+    #    ' -i "merged/output_concat_tcc.txt"'\
+    #    ' -c copy "merged/output_concat.mp4"'
+    #  ffmpeg.outputs.must_equal ["merged/output_concat.mp4"]
     #end
   end
 
@@ -128,6 +128,27 @@ describe Ffmpeg do
       ' -an -vcodec copy -ss 00:00:05 -t 00:00:06 "tmp/out_split_part2.mp4"'
   end
 
+  describe "#build_rotate_cmd" do
+    before :each do
+      @ffmpeg = Ffmpeg.new(:rotate) do
+        input "input.mp4"
+        output "tmp/out.mp4"
+      end
+    end
+
+    it "should default rotate 90' clockwise" do
+      @ffmpeg.send(:build_rotate_cmd).must_equal 'ffmpeg -i "input.mp4"'\
+        ' -vf "transpose=1" "tmp/out_rotate.mp4"'
+    end
+
+    it "should rotate 90' CounterClockwise" do
+      @ffmpeg.options[:rotation] = :cclockwise90
+
+      @ffmpeg.send(:build_rotate_cmd).must_equal 'ffmpeg -i "input.mp4"'\
+        ' -vf "transpose=2" "tmp/out_rotate.mp4"'
+    end
+  end
+
   describe "#build_speed_cmd" do
     before :each do
       @ffmpeg = Ffmpeg.new(:speed) do
@@ -141,7 +162,7 @@ describe Ffmpeg do
       @ffmpeg.options[:update_frames] = true
 
       @ffmpeg.send(:build_speed_cmd, 2.5).must_equal 'ffmpeg -i "input.mp4"'\
-        ' -r 50 -filter_complex'\
+        ' -r 50.0 -filter_complex'\
         ' "[0:v]setpts=0.4*PTS[v];[0:a]atempo=2.0;atempo=1.25[a]"'\
         ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
     end
@@ -166,8 +187,10 @@ describe Ffmpeg do
         ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
     end
 
-    it "should skip speedup by 1 times" do
-      @ffmpeg.send(:build_speed_cmd, 1.0).must_be_nil
+    it "should speedup by 1 times" do
+      @ffmpeg.send(:build_speed_cmd, 1.0).must_equal 'ffmpeg -i "input.mp4" '\
+        ' -filter_complex "[0:v]setpts=1.0*PTS[v];[0:a]atempo=1.0[a]"'\
+        ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
     end
 
     it "should slowdown by 2 times" do
@@ -182,7 +205,6 @@ describe Ffmpeg do
         ' "[0:v]setpts=5.0*PTS[v];[0:a]atempo=0.5;atempo=0.5;atempo=0.8[a]"'\
         ' -map "[v]" -map "[a]" "tmp/out_speed.mp4"'
     end
-
   end
 
 end

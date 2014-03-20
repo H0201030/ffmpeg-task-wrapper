@@ -76,6 +76,21 @@ class Ffmpeg
     @succeed == true
   end
 
+  # get length of a video
+  def self.length(video)
+    if File.exist? video
+      duration = %x[#{FFMPEG} -i "#{video}" 2>&1 | grep "Duration"]
+
+      if duration[/([0-9]{2}):([0-9]{2}):([0-9]{2}\.[0-9]{2})/]
+        $1.to_i * 3600 + $2.to_i * 60 + $3.to_f
+      else
+        0.0
+      end
+    else
+      nil
+    end
+  end
+
   private
 
   def input_files

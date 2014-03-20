@@ -25,7 +25,7 @@ class Ffmpeg
   end
 
   def input=(file)
-    @inputs = [file]
+    @inputs = file.respond_to?(:each) ? file : [file]
     @outputs = []
   end
 
